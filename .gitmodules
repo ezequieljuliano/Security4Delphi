@@ -1,0 +1,3 @@
+[submodule "dependencies/Aspect4Delphi"]
+	path = dependencies/Aspect4Delphi
+	url = https://github.com/ezequieljuliano/Aspect4Delphi.git
