@@ -4,7 +4,7 @@ The Security4Delphi is an API that is a an issue of great importance for most ap
 
 The authentication mechanism aims to verify the user's identity of a system. Already io authorization mechanism is responsible for ensuring that only authorized users are granted access to certain features of a system. The authorization may happen in two ways: permission functionality and enable by paper.
 
-The key piece to make these possible mechanisms is the security context, represented by ISecurityContext interface. That they are defined methods responsible for managing authentication mechanisms such as, for example, perform login/logout of users and check whether they are or not authenticated and authorized. To use the security context, just inject it into your code.
+The key piece to make these possible mechanisms is the security context, represented by ISecurityContext interface. That they are defined methods responsible for managing authentication mechanisms such as, for example, perform Login/Logout or HasRole/HasPermission of users and check whether they are or not authenticated and authorized. To use the security context, just inject it into your code.
 
 The Security4Delphi requires Delphi XE or greater.
 
@@ -131,8 +131,8 @@ After all configured to use the security context you simply add the Uses of Secu
      if Security.Context.IsLoggedIn then
     	Security.Context.Logout;
     
-     Credentials.Username := 'bob';
-     Credentials.Password := 'bob';
+     Credentials.Username := 'admin';
+     Credentials.Password := 'admin';
      Credentials.Role := ROLE_ADMIN;
 
      Security.Context.Login;
@@ -151,7 +151,7 @@ The custom attribute [RequiredPermission] lets you mark a class or method and st
 
 The custom attribute [RequiredRole] uses the concept of roles - or profiles - to protect resources. A method annotated with [RequiredRole] require the authenticated user has the role indicated to access the resource. 
 
-Example of use with the security aspect, remember to give Uses of Security4D.Aspect.pas and leaving as virtual methods:
+Example of use with the security aspect, remember to give Uses of Aspect4D.pas, Security4D.Aspect.pas and leaving as virtual methods:
 
     uses Aspect4D, Security4D.Aspect;
 
