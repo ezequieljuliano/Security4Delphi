@@ -147,7 +147,7 @@ After all configured to use the security context you simply add the Uses of Secu
 
 Using Security4Delphi together with [Aspect4Delphi](https://github.com/ezequieljuliano/Aspect4Delphi) is possible to make use of the concept of aspect-oriented programming (AOP).  
 
-The custom attribute [RequiredPermission] lets you mark a class or method and states that access to this feature requires permission to perform an operation. Operation in this context is defined by the developer name is a system feature.
+The custom attribute [RequiredPermission] lets you mark a method and states that access to this feature requires permission to perform an operation. Operation in this context is defined by the developer name is a system feature.
 
 The custom attribute [RequiredRole] uses the concept of roles - or profiles - to protect resources. A method annotated with [RequiredRole] require the authenticated user has the role indicated to access the resource. 
 
