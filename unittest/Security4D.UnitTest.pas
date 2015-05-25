@@ -31,7 +31,7 @@ type
     procedure TestNotLogged();
     procedure TestAfterLoginSuccessful();
     procedure TestAfterLogoutSuccessful();
-    procedure TestInterceptor();
+    procedure TestSecurityAspect();
   end;
 
 implementation
@@ -203,7 +203,7 @@ begin
   CheckException(LoginInvalidUser, EAuthorizationException);
 end;
 
-procedure TTestSecurity4D.TestInterceptor;
+procedure TTestSecurity4D.TestSecurityAspect;
 begin
   if Security.Context.IsLoggedIn then
     Security.Context.Logout;
