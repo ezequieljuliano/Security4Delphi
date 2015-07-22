@@ -32,7 +32,7 @@ begin
     Result := True
   else
   begin
-    vCredentials := (Security.Context.User.Attribute as TCredentials);
+    vCredentials := (Security.Context.AuthenticatedUser.Attribute as TCredentials);
     if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('Insert')) then
       Result := True;
     if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('Update')) then
@@ -51,7 +51,7 @@ begin
   if not Security.Context.IsLoggedIn then
     raise EAuthenticationException.Create('Unauthenticated user!');
 
-  Result := (Security.Context.User.Attribute as TCredentials).Role.Equals(pRole);
+  Result := (Security.Context.AuthenticatedUser.Attribute as TCredentials).Role.Equals(pRole);
 end;
 
 end.

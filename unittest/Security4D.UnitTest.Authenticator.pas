@@ -3,26 +3,25 @@ unit Security4D.UnitTest.Authenticator;
 interface
 
 uses
+  System.SysUtils,
   Security4D,
-  Security4D.UnitTest.Credentials,
-  System.SysUtils;
+  Security4D.UnitTest.Credentials;
 
 type
 
   TAuthenticator = class(TInterfacedObject, IAuthenticator)
   strict private
     FAuthenticated: Boolean;
-    FUser: IUser;
+    FAuthenticatedUser: IAuthenticatedUser;
     FCredentials: TCredentials;
+    function GetAuthenticatedUser(): IAuthenticatedUser;
   public
     constructor Create(pCredentials: TCredentials);
-
-    function GetUser(): IUser;
 
     procedure Authenticate();
     procedure Unauthenticate();
 
-    property User: IUser read GetUser;
+    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
   end;
 
 implementation
@@ -52,17 +51,17 @@ end;
 constructor TAuthenticator.Create(pCredentials: TCredentials);
 begin
   FAuthenticated := False;
-  FUser := nil;
+  FAuthenticatedUser := nil;
   FCredentials := pCredentials;
 end;
 
-function TAuthenticator.GetUser: IUser;
+function TAuthenticator.GetAuthenticatedUser: IAuthenticatedUser;
 begin
   if FAuthenticated then
   begin
-    if (FUser = nil) then
-      FUser := Security.User(FCredentials.Username, FCredentials);
-    Result := FUser;
+    if (FAuthenticatedUser = nil) then
+      FAuthenticatedUser := Security.NewAuthenticatedUser(FCredentials.Username, FCredentials);
+    Result := FAuthenticatedUser;
   end
   else
     Result := nil;
