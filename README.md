@@ -1,8 +1,8 @@
 # Security For Delphi
 
 The Security4Delphi is an API that is a an issue of great importance for most applications and the focus of endless discussions on development teams: access control. The implementation of the security context has been designed in a simple and flexible way, regardless of presentation or technology layer, leaving you free to implement their own solution or use the existing extensions.
-
-The authentication mechanism aims to verify the user's identity of a system. Already io authorization mechanism is responsible for ensuring that only authorized users are granted access to certain features of a system. The authorization may happen in two ways: permission functionality and enable by paper.
+The authentication mechanism aims to verify the user's identity of a system. 
+Already io authorization mechanism is responsible for ensuring that only authorized users are granted access to certain features of a system. The authorization may happen in two ways: permission functionality and enable by paper.
 
 The key piece to make these possible mechanisms is the security context, represented by ISecurityContext interface. That they are defined methods responsible for managing authentication mechanisms such as, for example, perform Login/Logout or HasRole/HasPermission of users and check whether they are or not authenticated and authorized. To use the security context, just inject it into your code.
 
@@ -17,59 +17,61 @@ The key to the security module are the IAuthenticator and IAuthorizer interfaces
     uses Security4D;
 
 	TAuthenticator = class(TInterfacedObject, IAuthenticator)
-    private
-       FAuthenticated: Boolean;
-       FUser: IUser;
-       FCredentials: TCredentials;
+    strict private
+      FAuthenticated: Boolean;
+      FAuthenticatedUser: IUser;
+      function GetAuthenticatedUser(): IUser;
     public
-       constructor Create(pCredentials: TCredentials);
+      constructor Create();
     
-       function GetUser(): IUser;
+      procedure Authenticate(pUser: IUser);
+      procedure Unauthenticate();
     
-       procedure Authenticate();
-       procedure Unauthenticate();
-    
-       property User: IUser read GetUser;
-     end;
-
-    procedure TAuthenticator.Authenticate;
-    var
-      vUsername, vPassword: string;
-    begin
-      vUsername := FCredentials.Username;
-      vPassword := FCredentials.Password;
-    
-      if (vUsername.Equals('admin')) and (vPassword.Equals('admin')) then
-    	FAuthenticated := True;
-    
-      if not FAuthenticated then
-    	raise EAuthenticationException.Create('Unauthenticated user!');
+      property AuthenticatedUser: IUser read GetAuthenticatedUser;
     end;
     
-    constructor TAuthenticator.Create(pCredentials: TCredentials);
-    begin
-      FAuthenticated := False;
-      FUser := nil;
-      FCredentials := pCredentials;
-    end;
+	procedure TAuthenticator.Authenticate(pUser: IUser);
+	var
+	  vUsername, vPassword: string;
+	begin
+	  FAuthenticated := False;
+	  FAuthenticatedUser := nil;
+	
+	  if (pUser = nil) then
+	    raise EAuthenticationException.Create('User not set to security layer!');
+	
+	  vUsername := TCredentials(pUser.Attribute).Username;
+	  vPassword := TCredentials(pUser.Attribute).Password;
+	
+	  if (vUsername.Equals('bob')) and (vPassword.Equals('bob')) then
+	    FAuthenticated := True
+	  else if (vUsername.Equals('jeff')) and (vPassword.Equals('jeff')) then
+	    FAuthenticated := True
+	  else if (vUsername.Equals('nick')) and (vPassword.Equals('nick')) then
+	    FAuthenticated := True;
+	
+	  if FAuthenticated then
+	    FAuthenticatedUser := pUser
+	  else
+	    raise EAuthenticationException.Create('Unauthenticated user!');
+	end;
+	    
+	constructor TAuthenticator.Create();
+	begin
+	  FAuthenticated := False;
+	  FAuthenticatedUser := nil;
+	end;
     
-    function TAuthenticator.GetUser: IUser;
-    begin
-      if FAuthenticated then
-      begin
-    	if (FUser = nil) then
-      	   FUser := Security.User(FCredentials.Username, FCredentials);
-       	Result := FUser;
-      end
-      else
-    	Result := nil;
-    end;
+	function TAuthenticator.GetAuthenticatedUser: IUser;
+	begin
+	  Result := FAuthenticatedUser;
+	end;
     
-    procedure TAuthenticator.Unauthenticate;
-    begin
-      FCredentials.Clear;
-      FAuthenticated := False;
-    end;
+	procedure TAuthenticator.Unauthenticate;
+	begin
+	  FAuthenticated := False;
+	  FAuthenticatedUser := nil;
+	end;
 
 **Authorizer**
 
@@ -115,7 +117,7 @@ Now add in the security context of your authenticator and authorizer:
     Security.Context.RegisterAuthenticator(
       function: IAuthenticator
       begin
-        Result := TAuthenticator.Create(Credentials);
+        Result := TAuthenticator.Create;
       end
     );
     
@@ -131,11 +133,9 @@ After all configured to use the security context you simply add the Uses of Secu
      if Security.Context.IsLoggedIn then
     	Security.Context.Logout;
     
-     Credentials.Username := 'admin';
-     Credentials.Password := 'admin';
-     Credentials.Role := ROLE_ADMIN;
-
-     Security.Context.Login;
+	 Security.Context.Login(
+	    Security.NewUser('1', TCredentials.Create('admin', 'admin', ROLE_ADMIN))
+	    );     
 
      if Security.Context.HasRole(ROLE_ADMIN) then
        ShowMessage('Is Admin');
