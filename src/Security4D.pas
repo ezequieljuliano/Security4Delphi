@@ -20,7 +20,7 @@ type
 
   TActivatorDelegate<TInterface: ISecurity> = reference to function: TInterface;
 
-  IAuthenticatedUser = interface(ISecurity)
+  IUser = interface(ISecurity)
     ['{27A9EA53-CA1C-48BA-85E3-6C45A8D9C53D}']
     function GetId(): string;
     function GetAttribute(): TObject;
@@ -31,12 +31,12 @@ type
 
   IAuthenticator = interface(ISecurity)
     ['{396B22CF-0C77-4809-8EB1-FAFE5782B50C}']
-    function GetAuthenticatedUser(): IAuthenticatedUser;
+    function GetAuthenticatedUser(): IUser;
 
-    procedure Authenticate();
+    procedure Authenticate(pUser: IUser);
     procedure Unauthenticate();
 
-    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
+    property AuthenticatedUser: IUser read GetAuthenticatedUser;
   end;
 
   IAuthorizer = interface(ISecurity)
@@ -47,7 +47,7 @@ type
 
   ISecurityContext = interface(ISecurity)
     ['{66F6C8D2-DF1E-479A-946A-1B6111F182DF}']
-    function GetAuthenticatedUser(): IAuthenticatedUser;
+    function GetAuthenticatedUser(): IUser;
 
     procedure RegisterAuthenticator(pDelegate: TActivatorDelegate<IAuthenticator>);
     procedure RegisterAuthorizer(pDelegate: TActivatorDelegate<IAuthorizer>);
@@ -55,7 +55,7 @@ type
     procedure OnAfterLoginSuccessful(pEvent: TProc);
     procedure OnAfterLogoutSuccessful(pEvent: TProc);
 
-    procedure Login();
+    procedure Login(pUser: IUser);
     procedure Logout();
 
     function IsLoggedIn(): Boolean;
@@ -64,7 +64,7 @@ type
     function HasRole(const pRole: string): Boolean;
     function HasPermission(const pResource, pOperation: string): Boolean;
 
-    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
+    property AuthenticatedUser: IUser read GetAuthenticatedUser;
   end;
 
   Security = class sealed
@@ -81,7 +81,7 @@ type
 
   public
     class function Context(): ISecurityContext; static;
-    class function NewAuthenticatedUser(const pId: string; pAttribute: TObject): IAuthenticatedUser; static;
+    class function NewUser(const pId: string; pAttribute: TObject; const pOwnsAttribute: Boolean = True): IUser; static;
   end;
 
 implementation
@@ -95,12 +95,12 @@ type
   const
     ClassNotFoundException = 'Security Authenticator not defined!';
   strict private
-    function GetAuthenticatedUser(): IAuthenticatedUser;
+    function GetAuthenticatedUser(): IUser;
   public
-    procedure Authenticate();
+    procedure Authenticate(pUser: IUser);
     procedure Unauthenticate();
 
-    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
+    property AuthenticatedUser: IUser read GetAuthenticatedUser;
   end;
 
   TDefaultAuthorizer = class(TSecurity, IAuthorizer)
@@ -112,14 +112,16 @@ type
     function HasPermission(const pResource, pOperation: string): Boolean;
   end;
 
-  TAuthenticatedUser = class(TSecurity, IAuthenticatedUser)
+  TUser = class(TSecurity, IUser)
   strict private
     FId: string;
     FAttribute: TObject;
+    FOwnsAttribute: Boolean;
     function GetId(): string;
     function GetAttribute(): TObject;
   public
-    constructor Create(const pId: string; pAttribute: TObject);
+    constructor Create(const pId: string; pAttribute: TObject; const pOwnsAttribute: Boolean = True);
+    destructor Destroy; override;
 
     property Id: string read GetId;
     property Attribute: TObject read GetAttribute;
@@ -148,7 +150,7 @@ type
 
     function GetAuthenticator(): IAuthenticator;
     function GetAuthorizer(): IAuthorizer;
-    function GetAuthenticatedUser(): IAuthenticatedUser;
+    function GetAuthenticatedUser(): IUser;
   public
     constructor Create();
     destructor Destroy; override;
@@ -159,7 +161,7 @@ type
     procedure OnAfterLoginSuccessful(pEvent: TProc);
     procedure OnAfterLogoutSuccessful(pEvent: TProc);
 
-    procedure Login();
+    procedure Login(pUser: IUser);
     procedure Logout();
 
     function IsLoggedIn(): Boolean;
@@ -168,7 +170,7 @@ type
     function HasRole(const pRole: string): Boolean;
     function HasPermission(const pResource, pOperation: string): Boolean;
 
-    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
+    property AuthenticatedUser: IUser read GetAuthenticatedUser;
   end;
 
   TSingletonSecurityContext = class sealed
@@ -182,12 +184,12 @@ type
 
   { TDefaultAuthenticator }
 
-procedure TDefaultAuthenticator.Authenticate;
+procedure TDefaultAuthenticator.Authenticate(pUser: IUser);
 begin
   raise EAuthenticatorException.Create(ClassNotFoundException);
 end;
 
-function TDefaultAuthenticator.GetAuthenticatedUser: IAuthenticatedUser;
+function TDefaultAuthenticator.GetAuthenticatedUser: IUser;
 begin
   raise EAuthenticatorException.Create(ClassNotFoundException);
 end;
@@ -209,20 +211,28 @@ begin
   raise EAuthorizerException.Create(ClassNotFoundException);
 end;
 
-{ TAuthenticatedUser }
+{ TUser }
 
-constructor TAuthenticatedUser.Create(const pId: string; pAttribute: TObject);
+constructor TUser.Create(const pId: string; pAttribute: TObject; const pOwnsAttribute: Boolean);
 begin
   FId := pId;
   FAttribute := pAttribute;
+  FOwnsAttribute := pOwnsAttribute;
 end;
 
-function TAuthenticatedUser.GetAttribute: TObject;
+destructor TUser.Destroy;
+begin
+  if (FOwnsAttribute) and (FAttribute <> nil) then
+    FreeAndNil(FAttribute);
+  inherited;
+end;
+
+function TUser.GetAttribute: TObject;
 begin
   Result := FAttribute;
 end;
 
-function TAuthenticatedUser.GetId: string;
+function TUser.GetId: string;
 begin
   Result := FId;
 end;
@@ -276,7 +286,7 @@ begin
   Result := FAuthorizer.Instance;
 end;
 
-function TSecurityContext.GetAuthenticatedUser: IAuthenticatedUser;
+function TSecurityContext.GetAuthenticatedUser: IUser;
 begin
   Result := GetAuthenticator.AuthenticatedUser;
 end;
@@ -308,10 +318,10 @@ begin
   Result := (GetAuthenticatedUser <> nil);
 end;
 
-procedure TSecurityContext.Login;
+procedure TSecurityContext.Login(pUser: IUser);
 begin
   try
-    GetAuthenticator().Authenticate();
+    GetAuthenticator().Authenticate(pUser);
   except
     on E: Exception do
       raise EAuthorizationException.Create(E.Message);
@@ -323,7 +333,7 @@ end;
 procedure TSecurityContext.Logout;
 begin
   try
-    GetAuthenticator().Unauthenticate();
+    GetAuthenticator().Unauthenticate;
   except
     on E: Exception do
       raise EAuthorizationException.Create(E.Message);
@@ -382,9 +392,9 @@ begin
   raise ESecurityException.Create(CanNotBeInstantiatedException);
 end;
 
-class function Security.NewAuthenticatedUser(const pId: string; pAttribute: TObject): IAuthenticatedUser;
+class function Security.NewUser(const pId: string; pAttribute: TObject; const pOwnsAttribute: Boolean): IUser;
 begin
-  Result := TAuthenticatedUser.Create(pId, pAttribute);
+  Result := TUser.Create(pId, pAttribute, pOwnsAttribute);
 end;
 
 end.

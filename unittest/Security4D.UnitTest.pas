@@ -96,11 +96,9 @@ begin
   if Security.Context.IsLoggedIn then
     Security.Context.Logout;
 
-  Credentials.Username := 'user';
-  Credentials.Password := 'user';
-  Credentials.Role := ROLE_ADMIN;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('user', TCredentials.Create('user', 'user', ROLE_ADMIN))
+    );
 end;
 
 procedure TTestSecurity4D.SetUp;
@@ -128,11 +126,9 @@ begin
       vMsg := 'Login Successful';
     end);
 
-  Credentials.Username := 'bob';
-  Credentials.Password := 'bob';
-  Credentials.Role := ROLE_ADMIN;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
+    );
 
   CheckEquals('Login Successful', vMsg);
 
@@ -150,17 +146,16 @@ begin
   Security.Context.OnAfterLogoutSuccessful(
     procedure
     begin
-      vMsg := 'Login Successful';
+      vMsg := 'Logout Successful';
     end);
 
-  Credentials.Username := 'bob';
-  Credentials.Password := 'bob';
-  Credentials.Role := ROLE_ADMIN;
+  Security.Context.Login(
+    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
+    );
 
-  Security.Context.Login;
   Security.Context.Logout;
 
-  CheckEquals('Login Successful', vMsg);
+  CheckEquals('Logout Successful', vMsg);
 
   Security.Context.OnAfterLoginSuccessful(nil);
 end;
@@ -170,31 +165,25 @@ begin
   if Security.Context.IsLoggedIn then
     Security.Context.Logout;
 
-  Credentials.Username := 'bob';
-  Credentials.Password := 'bob';
-  Credentials.Role := ROLE_ADMIN;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   Security.Context.Logout;
   CheckFalse(Security.Context.IsLoggedIn);
 
-  Credentials.Username := 'jeff';
-  Credentials.Password := 'jeff';
-  Credentials.Role := ROLE_MANAGER;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('jeff', TCredentials.Create('jeff', 'jeff', ROLE_MANAGER))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   Security.Context.Logout;
   CheckFalse(Security.Context.IsLoggedIn);
 
-  Credentials.Username := 'nick';
-  Credentials.Password := 'nick';
-  Credentials.Role := ROLE_NORMAL;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   Security.Context.Logout;
@@ -208,11 +197,9 @@ begin
   if Security.Context.IsLoggedIn then
     Security.Context.Logout;
 
-  Credentials.Username := 'nick';
-  Credentials.Password := 'nick';
-  Credentials.Role := ROLE_NORMAL;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
+    );
 
   CheckException(CarInsert, EAuthorizationException);
   CheckException(CarUpdate, EAuthorizationException);
@@ -221,11 +208,9 @@ begin
 
   Security.Context.Logout;
 
-  Credentials.Username := 'bob';
-  Credentials.Password := 'bob';
-  Credentials.Role := ROLE_ADMIN;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
+    );
 
   CarInsert();
   CarUpdate();
@@ -246,11 +231,9 @@ begin
   if Security.Context.IsLoggedIn then
     Security.Context.Logout;
 
-  Credentials.Username := 'bob';
-  Credentials.Password := 'bob';
-  Credentials.Role := ROLE_ADMIN;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   CheckTrue(Security.Context.HasRole(ROLE_ADMIN));
@@ -261,11 +244,9 @@ begin
   Security.Context.Logout;
   CheckFalse(Security.Context.IsLoggedIn);
 
-  Credentials.Username := 'jeff';
-  Credentials.Password := 'jeff';
-  Credentials.Role := ROLE_MANAGER;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('jeff', TCredentials.Create('jeff', 'jeff', ROLE_MANAGER))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   CheckTrue(Security.Context.HasRole(ROLE_MANAGER));
@@ -276,11 +257,9 @@ begin
   Security.Context.Logout;
   CheckFalse(Security.Context.IsLoggedIn);
 
-  Credentials.Username := 'nick';
-  Credentials.Password := 'nick';
-  Credentials.Role := ROLE_NORMAL;
-
-  Security.Context.Login;
+  Security.Context.Login(
+    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
+    );
   CheckTrue(Security.Context.IsLoggedIn);
   Security.Context.CheckLoggedIn;
   CheckTrue(Security.Context.HasRole(ROLE_NORMAL));

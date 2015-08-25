@@ -12,65 +12,62 @@ type
   TAuthenticator = class(TInterfacedObject, IAuthenticator)
   strict private
     FAuthenticated: Boolean;
-    FAuthenticatedUser: IAuthenticatedUser;
-    FCredentials: TCredentials;
-    function GetAuthenticatedUser(): IAuthenticatedUser;
+    FAuthenticatedUser: IUser;
+    function GetAuthenticatedUser(): IUser;
   public
-    constructor Create(pCredentials: TCredentials);
+    constructor Create();
 
-    procedure Authenticate();
+    procedure Authenticate(pUser: IUser);
     procedure Unauthenticate();
 
-    property AuthenticatedUser: IAuthenticatedUser read GetAuthenticatedUser;
+    property AuthenticatedUser: IUser read GetAuthenticatedUser;
   end;
 
 implementation
 
 { TAuthenticator }
 
-procedure TAuthenticator.Authenticate;
+procedure TAuthenticator.Authenticate(pUser: IUser);
 var
   vUsername, vPassword: string;
 begin
-  vUsername := FCredentials.Username;
-  vPassword := FCredentials.Password;
+  FAuthenticated := False;
+  FAuthenticatedUser := nil;
+
+  if (pUser = nil) then
+    raise EAuthenticationException.Create('User not set to security layer!');
+
+  vUsername := TCredentials(pUser.Attribute).Username;
+  vPassword := TCredentials(pUser.Attribute).Password;
 
   if (vUsername.Equals('bob')) and (vPassword.Equals('bob')) then
     FAuthenticated := True
   else if (vUsername.Equals('jeff')) and (vPassword.Equals('jeff')) then
     FAuthenticated := True
   else if (vUsername.Equals('nick')) and (vPassword.Equals('nick')) then
-    FAuthenticated := True
-  else
-    FAuthenticated := False;
+    FAuthenticated := True;
 
-  if not FAuthenticated then
+  if FAuthenticated then
+    FAuthenticatedUser := pUser
+  else
     raise EAuthenticationException.Create('Unauthenticated user!');
 end;
 
-constructor TAuthenticator.Create(pCredentials: TCredentials);
+constructor TAuthenticator.Create();
 begin
   FAuthenticated := False;
   FAuthenticatedUser := nil;
-  FCredentials := pCredentials;
 end;
 
-function TAuthenticator.GetAuthenticatedUser: IAuthenticatedUser;
+function TAuthenticator.GetAuthenticatedUser: IUser;
 begin
-  if FAuthenticated then
-  begin
-    if (FAuthenticatedUser = nil) then
-      FAuthenticatedUser := Security.NewAuthenticatedUser(FCredentials.Username, FCredentials);
-    Result := FAuthenticatedUser;
-  end
-  else
-    Result := nil;
+  Result := FAuthenticatedUser;
 end;
 
 procedure TAuthenticator.Unauthenticate;
 begin
-  FCredentials.Clear;
   FAuthenticated := False;
+  FAuthenticatedUser := nil;
 end;
 
 end.

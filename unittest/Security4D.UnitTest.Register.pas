@@ -15,7 +15,7 @@ begin
   Security.Context.RegisterAuthenticator(
     function: IAuthenticator
     begin
-      Result := TAuthenticator.Create(Credentials);
+      Result := TAuthenticator.Create;
     end
     );
 
