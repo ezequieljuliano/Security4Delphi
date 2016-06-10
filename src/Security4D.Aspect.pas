@@ -11,111 +11,127 @@ uses
 type
 
   RequiredPermissionAttribute = class(AspectAttribute)
-  strict private
-    FResource: string;
-    FOperation: string;
+  private
+    fResource: string;
+    fOperation: string;
+  protected
+    { protected declarations }
   public
-    constructor Create(const pResource, pOperation: string);
+    constructor Create(const resource, operation: string);
 
-    property Resource: string read FResource;
-    property Operation: string read FOperation;
+    property Resource: string read fResource;
+    property Operation: string read fOperation;
   end;
 
   RequiredRoleAttribute = class(AspectAttribute)
-  strict private
-    FRole: string;
+  private
+    fRole: string;
+  protected
+    { protected declarations }
   public
-    constructor Create(const pRole: string);
+    constructor Create(const role: string);
 
-    property Role: string read FRole;
+    property Role: string read fRole;
   end;
 
   TSecurityAspect = class(TAspect, IAspect)
-  strict private
-  const
-    NoPermissionException = 'You do not have permission to access this feature!';
-    NoRoleException = 'You do not have role to access this feature!';
+  private
+    const
+    NO_PERMISSION = 'You do not have permission to access this feature.';
+    NO_ROLE = 'You do not have role to access this feature.';
+  private
+    fSecurityContext: ISecurityContext;
+  protected
+    function GetName: string;
+
+    procedure DoBefore(instance: TObject; method: TRttiMethod;
+      const args: TArray<TValue>; out invoke: Boolean; out result: TValue);
+
+    procedure DoAfter(instance: TObject; method: TRttiMethod;
+      const args: TArray<TValue>; var result: TValue);
+
+    procedure DoException(instance: TObject; method: TRttiMethod;
+      const args: TArray<TValue>; out raiseException: Boolean;
+      theException: Exception; out result: TValue);
   public
-    procedure DoBefore(pInstance: TObject;
-      pMethod: TRttiMethod; const pArgs: TArray<TValue>; out pDoInvoke: Boolean;
-      out pResult: TValue);
-
-    procedure DoAfter(pInstance: TObject;
-      pMethod: TRttiMethod; const pArgs: TArray<TValue>; var pResult: TValue);
-
-    procedure DoException(pInstance: TObject;
-      pMethod: TRttiMethod; const pArgs: TArray<TValue>; out pRaiseException: Boolean;
-      pTheException: Exception; out pResult: TValue);
+    constructor Create(securityContext: ISecurityContext);
   end;
 
 implementation
 
 { RequiredPermissionAttribute }
 
-constructor RequiredPermissionAttribute.Create(const pResource, pOperation: string);
+constructor RequiredPermissionAttribute.Create(const resource, operation: string);
 begin
-  FResource := pResource;
-  FOperation := pOperation;
+  inherited Create;
+  fResource := resource;
+  fOperation := operation;
 end;
 
 { RequiredRoleAttribute }
 
-constructor RequiredRoleAttribute.Create(const pRole: string);
+constructor RequiredRoleAttribute.Create(const role: string);
 begin
-  FRole := pRole;
+  inherited Create;
+  fRole := role;
 end;
 
 { TSecurityAspect }
 
-procedure TSecurityAspect.DoAfter(pInstance: TObject; pMethod: TRttiMethod;
-  const pArgs: TArray<TValue>; var pResult: TValue);
+constructor TSecurityAspect.Create(securityContext: ISecurityContext);
+begin
+  inherited Create;
+  fSecurityContext := securityContext;
+end;
+
+procedure TSecurityAspect.DoAfter(instance: TObject; method: TRttiMethod; const args: TArray<TValue>; var result: TValue);
 begin
   // Method unused
 end;
 
-procedure TSecurityAspect.DoBefore(pInstance: TObject; pMethod: TRttiMethod;
-  const pArgs: TArray<TValue>; out pDoInvoke: Boolean; out pResult: TValue);
+procedure TSecurityAspect.DoBefore(instance: TObject; method: TRttiMethod; const args: TArray<TValue>; out invoke: Boolean;
+  out result: TValue);
 var
-  vAtt: TCustomAttribute;
-  vHasPermission: Boolean;
-  vHasRole: Boolean;
+  att: TCustomAttribute;
+  hasPermission: Boolean;
+  hasRole: Boolean;
 begin
-  vHasPermission := True;
-  for vAtt in pMethod.GetAttributes do
-    if vAtt is RequiredPermissionAttribute then
+  hasPermission := True;
+  for att in method.GetAttributes do
+    if att is RequiredPermissionAttribute then
     begin
-      vHasPermission := Security.Context.HasPermission(
-        RequiredPermissionAttribute(vAtt).Resource, RequiredPermissionAttribute(vAtt).Operation
+      hasPermission := fSecurityContext.HasPermission(
+        RequiredPermissionAttribute(att).Resource, RequiredPermissionAttribute(att).Operation
         );
-      if vHasPermission then
+      if hasPermission then
         Break;
     end;
 
-  vHasRole := True;
-  for vAtt in pMethod.GetAttributes do
-    if vAtt is RequiredRoleAttribute then
+  hasRole := True;
+  for att in method.GetAttributes do
+    if att is RequiredRoleAttribute then
     begin
-      vHasRole := Security.Context.HasRole(RequiredRoleAttribute(vAtt).Role);
-      if vHasRole then
+      hasRole := fSecurityContext.HasRole(RequiredRoleAttribute(att).Role);
+      if hasRole then
         Break;
     end;
 
-  if not vHasPermission then
-    raise EAuthorizationException.Create(NoPermissionException);
+  if not hasPermission then
+    raise EAuthorizationException.Create(NO_PERMISSION);
 
-  if not vHasRole then
-    raise EAuthorizationException.Create(NoRoleException);
+  if not hasRole then
+    raise EAuthorizationException.Create(NO_ROLE);
 end;
 
-procedure TSecurityAspect.DoException(pInstance: TObject; pMethod: TRttiMethod;
-  const pArgs: TArray<TValue>; out pRaiseException: Boolean; pTheException: Exception;
-  out pResult: TValue);
+procedure TSecurityAspect.DoException(instance: TObject; method: TRttiMethod; const args: TArray<TValue>; out raiseException: Boolean;
+  theException: Exception; out result: TValue);
 begin
   // Method unused
 end;
 
-initialization
-
-Aspect.Register(TSecurityAspect);
+function TSecurityAspect.GetName: string;
+begin
+  Result := Self.QualifiedClassName;
+end;
 
 end.

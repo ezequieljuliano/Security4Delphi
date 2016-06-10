@@ -4,54 +4,54 @@ interface
 
 uses
   Security4D,
-  Security4D.UnitTest.Credentials,
+  Security4D.Impl,
+  Security4D.UnitTest.Credential,
   System.SysUtils;
 
 type
 
-  TAuthorizer = class(TInterfacedObject, IAuthorizer)
+  TAuthorizer = class(TSecurityProvider, IAuthorizer)
+  private
+    { private declarations }
+  protected
+    function HasRole(const role: string): Boolean;
+    function HasPermission(const resource, operation: string): Boolean;
   public
-    function HasRole(const pRole: string): Boolean;
-    function HasPermission(const pResource, pOperation: string): Boolean;
+    { public declarations }
   end;
 
 implementation
 
 { TAuthorizer }
 
-function TAuthorizer.HasPermission(const pResource, pOperation: string): Boolean;
+function TAuthorizer.HasPermission(const resource, operation: string): Boolean;
 var
-  vCredentials: TCredentials;
+  credential: TCredential;
 begin
   Result := False;
-
-  if not Security.Context.IsLoggedIn then
-    raise EAuthenticationException.Create('Unauthenticated user!');
-
-  if Security.Context.HasRole(ROLE_ADMIN) then
+  if HasRole(ROLE_ADMIN) then
     Result := True
   else
   begin
-    vCredentials := (Security.Context.AuthenticatedUser.Attribute as TCredentials);
-    if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('Insert')) then
+    credential := (SecurityContext.AuthenticatedUser.Attribute as TCredential);
+    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Insert')) then
       Result := True;
-    if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('Update')) then
+    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Update')) then
       Result := True;
-    if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('Delete')) then
+    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Delete')) then
       Result := True;
-    if (vCredentials.Role.Equals(ROLE_MANAGER)) and (pResource.Equals('Car')) and (pOperation.Equals('View')) then
+    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('View')) then
       Result := True;
-    if (vCredentials.Role.Equals(ROLE_NORMAL)) and (pResource.Equals('Car')) and (pOperation.Equals('View')) then
+    if (credential.Role.Equals(ROLE_NORMAL)) and (resource.Equals('Car')) and (operation.Equals('View')) then
       Result := True;
   end;
 end;
 
-function TAuthorizer.HasRole(const pRole: string): Boolean;
+function TAuthorizer.HasRole(const role: string): Boolean;
 begin
-  if not Security.Context.IsLoggedIn then
-    raise EAuthenticationException.Create('Unauthenticated user!');
-
-  Result := (Security.Context.AuthenticatedUser.Attribute as TCredentials).Role.Equals(pRole);
+  if not SecurityContext.IsLoggedIn then
+    raise EAuthenticationException.Create('Unauthenticated user.');
+  Result := (SecurityContext.AuthenticatedUser.Attribute as TCredential).Role.Equals(role);
 end;
 
 end.

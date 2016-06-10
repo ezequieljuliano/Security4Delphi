@@ -6,9 +6,13 @@ uses
   TestFramework,
   System.Classes,
   System.SysUtils,
+  Aspect4D,
+  Aspect4D.Impl,
   Security4D,
+  Security4D.Impl,
+  Security4D.Aspect,
   Security4D.UnitTest.Authenticator,
-  Security4D.UnitTest.Credentials,
+  Security4D.UnitTest.Credential,
   Security4D.UnitTest.Authorizer,
   Security4D.UnitTest.Car;
 
@@ -16,22 +20,25 @@ type
 
   TTestSecurity4D = class(TTestCase)
   private
-    procedure CheckLoggedIn();
-    procedure LoginInvalidUser();
-    procedure CarInsert();
-    procedure CarUpdate();
-    procedure CarDelete();
-    procedure CarView();
+    fSecurityContext: ISecurityContext;
+    fAspectContext: IAspectContext;
+    fCar: TCar;
+    procedure CheckLoggedIn;
+    procedure LoginInvalidUser;
+    procedure CarInsert;
+    procedure CarUpdate;
+    procedure CarDelete;
+    procedure CarView;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
   published
-    procedure TestAuthentication();
-    procedure TestPermissions();
-    procedure TestNotLogged();
-    procedure TestAfterLoginSuccessful();
-    procedure TestAfterLogoutSuccessful();
-    procedure TestSecurityAspect();
+    procedure TestAuthentication;
+    procedure TestPermissions;
+    procedure TestNotLogged;
+    procedure TestAfterLoginSuccessful;
+    procedure TestAfterLogoutSuccessful;
+    procedure TestSecurityAspect;
   end;
 
 implementation
@@ -39,178 +46,143 @@ implementation
 { TTestSecurity4D }
 
 procedure TTestSecurity4D.CarDelete;
-var
-  vCar: TCar;
 begin
-  vCar := TCar.Create;
-  try
-    vCar.Delete;
-  finally
-    FreeAndNil(vCar);
-  end;
+  fCar.Delete;
 end;
 
 procedure TTestSecurity4D.CarInsert;
-var
-  vCar: TCar;
 begin
-  vCar := TCar.Create;
-  try
-    vCar.Insert;
-  finally
-    FreeAndNil(vCar);
-  end;
+  fCar.Insert;
 end;
 
 procedure TTestSecurity4D.CarUpdate;
-var
-  vCar: TCar;
 begin
-  vCar := TCar.Create;
-  try
-    vCar.Update;
-  finally
-    FreeAndNil(vCar);
-  end;
+  fCar.Update;
 end;
 
 procedure TTestSecurity4D.CarView;
-var
-  vCar: TCar;
 begin
-  vCar := TCar.Create;
-  try
-    vCar.View;
-  finally
-    FreeAndNil(vCar);
-  end;
+  fCar.View;
 end;
 
 procedure TTestSecurity4D.CheckLoggedIn;
 begin
-  Security.Context.CheckLoggedIn;
+  fSecurityContext.CheckLoggedIn;
 end;
 
 procedure TTestSecurity4D.LoginInvalidUser;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.Login(
-    Security.NewUser('user', TCredentials.Create('user', 'user', ROLE_ADMIN))
-    );
+  fSecurityContext.Login(TUser.Create('user', TCredential.Create('user', 'user', ROLE_ADMIN)));
 end;
 
 procedure TTestSecurity4D.SetUp;
 begin
   inherited;
+  fSecurityContext := TSecurityContext.Create;
+  fSecurityContext.RegisterAuthenticator(TAuthenticator.Create(fSecurityContext));
+  fSecurityContext.RegisterAuthorizer(TAuthorizer.Create(fSecurityContext));
 
+  fAspectContext := TAspectContext.Create;
+  fAspectContext.Register(TSecurityAspect.Create(fSecurityContext));
+
+  fCar := TCar.Create;
+  fAspectContext.Weaver.Proxify(fCar);
 end;
 
 procedure TTestSecurity4D.TearDown;
 begin
   inherited;
-
+  fAspectContext.Weaver.Unproxify(fCar);
+  fCar.Free;
 end;
 
 procedure TTestSecurity4D.TestAfterLoginSuccessful;
 var
-  vMsg: string;
+  msg: string;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.OnAfterLoginSuccessful(
+  fSecurityContext.OnAfterLoginSuccessful(
     procedure
     begin
-      vMsg := 'Login Successful';
+      msg := 'Login Successful';
     end);
 
-  Security.Context.Login(
-    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
-    );
+  fSecurityContext.Login(TUser.Create('bob', TCredential.Create('bob', 'bob', ROLE_ADMIN)));
 
-  CheckEquals('Login Successful', vMsg);
+  CheckEquals('Login Successful', msg);
 
-  Security.Context.Logout;
-  Security.Context.OnAfterLoginSuccessful(nil);
+  fSecurityContext.Logout;
+  fSecurityContext.OnAfterLoginSuccessful(nil);
 end;
 
 procedure TTestSecurity4D.TestAfterLogoutSuccessful;
 var
-  vMsg: string;
+  msg: string;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.OnAfterLogoutSuccessful(
+  fSecurityContext.OnAfterLogoutSuccessful(
     procedure
     begin
-      vMsg := 'Logout Successful';
+      msg := 'Logout Successful';
     end);
 
-  Security.Context.Login(
-    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
-    );
+  fSecurityContext.Login(TUser.Create('bob', TCredential.Create('bob', 'bob', ROLE_ADMIN)));
 
-  Security.Context.Logout;
+  fSecurityContext.Logout;
 
-  CheckEquals('Logout Successful', vMsg);
+  CheckEquals('Logout Successful', msg);
 
-  Security.Context.OnAfterLoginSuccessful(nil);
+  fSecurityContext.OnAfterLoginSuccessful(nil);
 end;
 
 procedure TTestSecurity4D.TestAuthentication;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.Login(
-    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('bob', TCredential.Create('bob', 'bob', ROLE_ADMIN)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 
-  Security.Context.Login(
-    Security.NewUser('jeff', TCredentials.Create('jeff', 'jeff', ROLE_MANAGER))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('jeff', TCredential.Create('jeff', 'jeff', ROLE_MANAGER)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 
-  Security.Context.Login(
-    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('nick', TCredential.Create('nick', 'nick', ROLE_NORMAL)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 
   CheckException(LoginInvalidUser, EAuthorizationException);
 end;
 
 procedure TTestSecurity4D.TestSecurityAspect;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.Login(
-    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
-    );
+  fSecurityContext.Login(TUser.Create('nick', TCredential.Create('nick', 'nick', ROLE_NORMAL)));
 
   CheckException(CarInsert, EAuthorizationException);
   CheckException(CarUpdate, EAuthorizationException);
   CheckException(CarDelete, EAuthorizationException);
   CarView();
 
-  Security.Context.Logout;
+  fSecurityContext.Logout;
 
-  Security.Context.Login(
-    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
-    );
+  fSecurityContext.Login(TUser.Create('bob', TCredential.Create('bob', 'bob', ROLE_ADMIN)));
 
   CarInsert();
   CarUpdate();
@@ -220,55 +192,49 @@ end;
 
 procedure TTestSecurity4D.TestNotLogged;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
   CheckException(CheckLoggedIn, EAuthorizationException);
 end;
 
 procedure TTestSecurity4D.TestPermissions;
 begin
-  if Security.Context.IsLoggedIn then
-    Security.Context.Logout;
+  if fSecurityContext.IsLoggedIn then
+    fSecurityContext.Logout;
 
-  Security.Context.Login(
-    Security.NewUser('bob', TCredentials.Create('bob', 'bob', ROLE_ADMIN))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  CheckTrue(Security.Context.HasRole(ROLE_ADMIN));
-  CheckTrue(Security.Context.HasPermission('Car', 'Insert'));
-  CheckTrue(Security.Context.HasPermission('Car', 'Update'));
-  CheckTrue(Security.Context.HasPermission('Car', 'Delete'));
-  CheckTrue(Security.Context.HasPermission('Car', 'View'));
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('bob', TCredential.Create('bob', 'bob', ROLE_ADMIN)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  CheckTrue(fSecurityContext.HasRole(ROLE_ADMIN));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Insert'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Update'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Delete'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'View'));
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 
-  Security.Context.Login(
-    Security.NewUser('jeff', TCredentials.Create('jeff', 'jeff', ROLE_MANAGER))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  CheckTrue(Security.Context.HasRole(ROLE_MANAGER));
-  CheckTrue(Security.Context.HasPermission('Car', 'Insert'));
-  CheckTrue(Security.Context.HasPermission('Car', 'Update'));
-  CheckTrue(Security.Context.HasPermission('Car', 'Delete'));
-  CheckTrue(Security.Context.HasPermission('Car', 'View'));
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('jeff', TCredential.Create('jeff', 'jeff', ROLE_MANAGER)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  CheckTrue(fSecurityContext.HasRole(ROLE_MANAGER));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Insert'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Update'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'Delete'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'View'));
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 
-  Security.Context.Login(
-    Security.NewUser('nick', TCredentials.Create('nick', 'nick', ROLE_NORMAL))
-    );
-  CheckTrue(Security.Context.IsLoggedIn);
-  Security.Context.CheckLoggedIn;
-  CheckTrue(Security.Context.HasRole(ROLE_NORMAL));
-  CheckFalse(Security.Context.HasPermission('Car', 'Insert'));
-  CheckFalse(Security.Context.HasPermission('Car', 'Update'));
-  CheckFalse(Security.Context.HasPermission('Car', 'Delete'));
-  CheckTrue(Security.Context.HasPermission('Car', 'View'));
-  Security.Context.Logout;
-  CheckFalse(Security.Context.IsLoggedIn);
+  fSecurityContext.Login(TUser.Create('nick', TCredential.Create('nick', 'nick', ROLE_NORMAL)));
+  CheckTrue(fSecurityContext.IsLoggedIn);
+  fSecurityContext.CheckLoggedIn;
+  CheckTrue(fSecurityContext.HasRole(ROLE_NORMAL));
+  CheckFalse(fSecurityContext.HasPermission('Car', 'Insert'));
+  CheckFalse(fSecurityContext.HasPermission('Car', 'Update'));
+  CheckFalse(fSecurityContext.HasPermission('Car', 'Delete'));
+  CheckTrue(fSecurityContext.HasPermission('Car', 'View'));
+  fSecurityContext.Logout;
+  CheckFalse(fSecurityContext.IsLoggedIn);
 end;
 
 initialization

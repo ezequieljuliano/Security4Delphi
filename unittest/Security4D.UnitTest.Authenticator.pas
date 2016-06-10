@@ -5,69 +5,69 @@ interface
 uses
   System.SysUtils,
   Security4D,
-  Security4D.UnitTest.Credentials;
+  Security4D.Impl,
+  Security4D.UnitTest.Credential;
 
 type
 
-  TAuthenticator = class(TInterfacedObject, IAuthenticator)
-  strict private
-    FAuthenticated: Boolean;
-    FAuthenticatedUser: IUser;
-    function GetAuthenticatedUser(): IUser;
+  TAuthenticator = class(TSecurityProvider, IAuthenticator)
+  private
+    fAuthenticated: Boolean;
+    fAuthenticatedUser: IUser;
+  protected
+    function GetAuthenticatedUser: IUser;
+    procedure Authenticate(user: IUser);
+    procedure Unauthenticate;
   public
-    constructor Create();
-
-    procedure Authenticate(pUser: IUser);
-    procedure Unauthenticate();
-
-    property AuthenticatedUser: IUser read GetAuthenticatedUser;
+    procedure AfterConstruction; override;
   end;
 
 implementation
 
 { TAuthenticator }
 
-procedure TAuthenticator.Authenticate(pUser: IUser);
-var
-  vUsername, vPassword: string;
+procedure TAuthenticator.AfterConstruction;
 begin
-  FAuthenticated := False;
-  FAuthenticatedUser := nil;
-
-  if (pUser = nil) then
-    raise EAuthenticationException.Create('User not set to security layer!');
-
-  vUsername := TCredentials(pUser.Attribute).Username;
-  vPassword := TCredentials(pUser.Attribute).Password;
-
-  if (vUsername.Equals('bob')) and (vPassword.Equals('bob')) then
-    FAuthenticated := True
-  else if (vUsername.Equals('jeff')) and (vPassword.Equals('jeff')) then
-    FAuthenticated := True
-  else if (vUsername.Equals('nick')) and (vPassword.Equals('nick')) then
-    FAuthenticated := True;
-
-  if FAuthenticated then
-    FAuthenticatedUser := pUser
-  else
-    raise EAuthenticationException.Create('Unauthenticated user!');
+  inherited;
+  fAuthenticated := False;
+  fAuthenticatedUser := nil;
 end;
 
-constructor TAuthenticator.Create();
+procedure TAuthenticator.Authenticate(user: IUser);
+var
+  username, password: string;
 begin
-  FAuthenticated := False;
-  FAuthenticatedUser := nil;
+  fAuthenticated := False;
+  fAuthenticatedUser := nil;
+
+  if not Assigned(user) then
+    raise EAuthenticationException.Create('User not set to security layer.');
+
+  username := TCredential(user.Attribute).Username;
+  password := TCredential(user.Attribute).Password;
+
+  if (username.Equals('bob')) and (password.Equals('bob')) then
+    fAuthenticated := True
+  else if (username.Equals('jeff')) and (password.Equals('jeff')) then
+    fAuthenticated := True
+  else if (username.Equals('nick')) and (password.Equals('nick')) then
+    fAuthenticated := True;
+
+  if fAuthenticated then
+    fAuthenticatedUser := user
+  else
+    raise EAuthenticationException.Create('Unauthenticated user.');
 end;
 
 function TAuthenticator.GetAuthenticatedUser: IUser;
 begin
-  Result := FAuthenticatedUser;
+  Result := fAuthenticatedUser;
 end;
 
 procedure TAuthenticator.Unauthenticate;
 begin
-  FAuthenticated := False;
-  FAuthenticatedUser := nil;
+  fAuthenticated := False;
+  fAuthenticatedUser := nil;
 end;
 
 end.

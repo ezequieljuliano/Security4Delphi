@@ -3,69 +3,56 @@ unit Security4D.UnitTest.Car;
 interface
 
 uses
-  Aspect4D,
   Security4D.Aspect,
-  Security4D.UnitTest.Credentials;
+  Security4D.UnitTest.Credential;
 
 type
 
   TCar = class
-  strict private
-    FAction: string;
+  private
+    fAction: string;
+  protected
+    { protected declarations }
   public
-    constructor Create;
-    destructor Destroy; override;
-
     [RequiredPermission('Car', 'Insert')]
-    procedure Insert(); virtual;
+    procedure Insert; virtual;
 
     [RequiredPermission('Car', 'Update')]
-    procedure Update(); virtual;
+    procedure Update; virtual;
 
     [RequiredPermission('Car', 'Delete')]
-    procedure Delete(); virtual;
+    procedure Delete; virtual;
 
     [RequiredRole(ROLE_ADMIN)]
     [RequiredRole(ROLE_MANAGER)]
     [RequiredRole(ROLE_NORMAL)]
-    procedure View(); virtual;
+    procedure View; virtual;
 
-    property Action: string read FAction;
+    property Action: string read fAction;
   end;
 
 implementation
 
 { TCar }
 
-constructor TCar.Create;
-begin
-  Aspect.Weaver.Proxify(Self);
-end;
-
 procedure TCar.Delete;
 begin
-  FAction := 'Car Deleted';
-end;
-
-destructor TCar.Destroy;
-begin
-  Aspect.Weaver.Unproxify(Self);
-  inherited;
+  fAction := 'Car Deleted';
 end;
 
 procedure TCar.Insert;
 begin
-  FAction := 'Car Inserted';
+  fAction := 'Car Inserted';
 end;
 
 procedure TCar.Update;
 begin
-  FAction := 'Car Updated';
+  fAction := 'Car Updated';
 end;
 
 procedure TCar.View;
 begin
-  FAction := 'Car Viewed';
+  fAction := 'Car Viewed';
 end;
 
 end.

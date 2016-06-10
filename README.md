@@ -10,138 +10,146 @@ The Security4Delphi requires Delphi XE or greater.
 
 # Creating Its Implementation #
 
-The key to the security module are the IAuthenticator and IAuthorizer interfaces. To create a new mechanism for authentication and authorization, you only need to implement these two interfaces in your application. Below is a sample implementation:
+The key to the security module are the IAuthenticator and IAuthorizer interfaces. To create a new mechanism for authentication and authorization, you only need to implement these two interfaces in your application. The library already has an abstract base class called TSecurityProvider. 
+
+Below is a sample implementation:
 
 **Authenticator**
 
-    uses Security4D;
+	uses
+	  Security4D,
+	  Security4D.Impl;
 
-	TAuthenticator = class(TInterfacedObject, IAuthenticator)
-    strict private
-      FAuthenticated: Boolean;
-      FAuthenticatedUser: IUser;
-      function GetAuthenticatedUser(): IUser;
-    public
-      constructor Create();
+	type
+	
+	  TAuthenticator = class(TSecurityProvider, IAuthenticator)
+	  private
+	    fAuthenticated: Boolean;
+	    fAuthenticatedUser: IUser;
+	  protected
+	    function GetAuthenticatedUser: IUser;
+	    procedure Authenticate(user: IUser);
+	    procedure Unauthenticate;
+	  public
+	    procedure AfterConstruction; override;
+	  end;
     
-      procedure Authenticate(pUser: IUser);
-      procedure Unauthenticate();
-    
-      property AuthenticatedUser: IUser read GetAuthenticatedUser;
-    end;
-    
-	procedure TAuthenticator.Authenticate(pUser: IUser);
+	{ TAuthenticator }
+	
+	procedure TAuthenticator.AfterConstruction;
+	begin
+	  inherited;
+	  fAuthenticated := False;
+	  fAuthenticatedUser := nil;
+	end;
+	
+	procedure TAuthenticator.Authenticate(user: IUser);
 	var
-	  vUsername, vPassword: string;
+	  username, password: string;
 	begin
-	  FAuthenticated := False;
-	  FAuthenticatedUser := nil;
+	  fAuthenticated := False;
+	  fAuthenticatedUser := nil;
 	
-	  if (pUser = nil) then
-	    raise EAuthenticationException.Create('User not set to security layer!');
+	  if not Assigned(user) then
+	    raise EAuthenticationException.Create('User not set to security layer.');
 	
-	  vUsername := TCredentials(pUser.Attribute).Username;
-	  vPassword := TCredentials(pUser.Attribute).Password;
+	  username := TCredential(user.Attribute).Username;
+	  password := TCredential(user.Attribute).Password;
 	
-	  if (vUsername.Equals('bob')) and (vPassword.Equals('bob')) then
-	    FAuthenticated := True
-	  else if (vUsername.Equals('jeff')) and (vPassword.Equals('jeff')) then
-	    FAuthenticated := True
-	  else if (vUsername.Equals('nick')) and (vPassword.Equals('nick')) then
-	    FAuthenticated := True;
+	  if (username.Equals('bob')) and (password.Equals('bob')) then
+	    fAuthenticated := True
+	  else if (username.Equals('jeff')) and (password.Equals('jeff')) then
+	    fAuthenticated := True
+	  else if (username.Equals('nick')) and (password.Equals('nick')) then
+	    fAuthenticated := True;
 	
-	  if FAuthenticated then
-	    FAuthenticatedUser := pUser
+	  if fAuthenticated then
+	    fAuthenticatedUser := user
 	  else
-	    raise EAuthenticationException.Create('Unauthenticated user!');
+	    raise EAuthenticationException.Create('Unauthenticated user.');
 	end;
-	    
-	constructor TAuthenticator.Create();
-	begin
-	  FAuthenticated := False;
-	  FAuthenticatedUser := nil;
-	end;
-    
+	
 	function TAuthenticator.GetAuthenticatedUser: IUser;
 	begin
-	  Result := FAuthenticatedUser;
+	  Result := fAuthenticatedUser;
 	end;
-    
+	
 	procedure TAuthenticator.Unauthenticate;
 	begin
-	  FAuthenticated := False;
-	  FAuthenticatedUser := nil;
+	  fAuthenticated := False;
+	  fAuthenticatedUser := nil;
 	end;
 
 **Authorizer**
 
-    uses Security4D;
+	uses
+	  Security4D,
+	  Security4D.Impl;
 
-	TAuthorizer = class(TInterfacedObject, IAuthorizer)
-    public
-       function HasRole(const pRole: string): Boolean;
-       function HasPermission(const pResource, pOperation: string): Boolean;
-    end;
+	type
+	
+	  TAuthorizer = class(TSecurityProvider, IAuthorizer)
+	  private
+	    { private declarations }
+	  protected
+	    function HasRole(const role: string): Boolean;
+	    function HasPermission(const resource, operation: string): Boolean;
+	  public
+	    { public declarations }
+	  end;
 
-    function TAuthorizer.HasPermission(const pResource, pOperation: string): Boolean;
-    var
-      vCredentials: TCredentials;
-    begin
-      Result := False;
-    
-      if not Security.Context.IsLoggedIn then
-    	raise EAuthenticationException.Create('Unauthenticated user!');
-    
-      if Security.Context.HasRole(ROLE_ADMIN) then
-    	Result := True
-      else
-      begin
-    	vCredentials := (Security.Context.User.Attribute as TCredentials);
-    	if (vCredentials.Role.Equals(ROLE_MANAGER)) and 
-		  (pResource.Equals('Car')) and (pOperation.Equals('Insert')) then
-      	  Result := True;
-      end;
-    end;
-    
-    function TAuthorizer.HasRole(const pRole: string): Boolean;
-    begin
-      if not Security.Context.IsLoggedIn then
-    raise EAuthenticationException.Create('Unauthenticated user!');
-    
-      Result := (Security.Context.User.Attribute as TCredentials)
-        .Role.Equals(pRole);
-    end;
+	{ TAuthorizer }
+	
+	function TAuthorizer.HasPermission(const resource, operation: string): Boolean;
+	var
+	  credential: TCredential;
+	begin
+	  Result := False;
+	  if HasRole(ROLE_ADMIN) then
+	    Result := True
+	  else
+	  begin
+	    credential := (SecurityContext.AuthenticatedUser.Attribute as TCredential);
+	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Insert')) then
+	      Result := True;
+	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Update')) then
+	      Result := True;
+	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Delete')) then
+	      Result := True;
+	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('View')) then
+	      Result := True;
+	    if (credential.Role.Equals(ROLE_NORMAL)) and (resource.Equals('Car')) and (operation.Equals('View')) then
+	      Result := True;
+	  end;
+	end;
+	
+	function TAuthorizer.HasRole(const role: string): Boolean;
+	begin
+	  if not SecurityContext.IsLoggedIn then
+	    raise EAuthenticationException.Create('Unauthenticated user.');
+	  Result := (SecurityContext.AuthenticatedUser.Attribute as TCredential).Role.Equals(role);
+	end;
 
-Now add in the security context of your authenticator and authorizer:
+Now create your security context and add your authenticator and authorizer:
+	  
+	  fSecurityContext: ISecurityContext;
 
-    Security.Context.RegisterAuthenticator(
-      function: IAuthenticator
-      begin
-        Result := TAuthenticator.Create;
-      end
-    );
-    
-    Security.Context.RegisterAuthorizer(
-     function: IAuthorizer
-     begin
-        Result := TAuthorizer.Create;
-     end
-    );
+	  fSecurityContext := TSecurityContext.Create;
+	  fSecurityContext.RegisterAuthenticator(TAuthenticator.Create(fSecurityContext));
+	  fSecurityContext.RegisterAuthorizer(TAuthorizer.Create(fSecurityContext));
 
 After all configured to use the security context you simply add the Uses of Security4D.pas and use in their codes:
 
-     if Security.Context.IsLoggedIn then
-    	Security.Context.Logout;
+	  if fSecurityContext.IsLoggedIn then
+	    fSecurityContext.Logout;
     
-	 Security.Context.Login(
-	    Security.NewUser('1', TCredentials.Create('admin', 'admin', ROLE_ADMIN))
-	    );     
+      fSecurityContext.Login(TUser.Create('user', TCredential.Create('user', 'user', ROLE_ADMIN)));    
 
-     if Security.Context.HasRole(ROLE_ADMIN) then
-       ShowMessage('Is Admin');
+      if fSecurityContext.HasRole(ROLE_ADMIN) then
+        ShowMessage('Is Admin');
 
-	 if Security.Context.HasPermission('Car', 'Insert') then
-       ShowMessage('Has Permission');
+	  if fSecurityContext.HasPermission('Car', 'Insert') then
+        ShowMessage('Has Permission');
 
 # Protecting the system with [RequiredPermission] and [RequiredRole] #
 
@@ -153,35 +161,49 @@ The custom attribute [RequiredRole] uses the concept of roles - or profiles - to
 
 Example of use with the security aspect, remember to give Uses of Aspect4D.pas, Security4D.Aspect.pas and leaving as virtual methods:
 
-    uses Aspect4D, Security4D.Aspect;
+    uses 
+       Security4D.Aspect;
 
-	TCar = class
-    public
-	    constructor Create;
-	    destructor Destroy; override;
-	    
+	type
+	
+	  TCar = class
+	  private
+	    { private declarations }
+	  protected
+	    { protected declarations }
+	  public
 	    [RequiredPermission('Car', 'Insert')]
-	    procedure Insert(); virtual;
-	    
+	    procedure Insert; virtual;
+	
 	    [RequiredPermission('Car', 'Update')]
-	    procedure Update(); virtual;
-	    
+	    procedure Update; virtual;
+	
 	    [RequiredPermission('Car', 'Delete')]
-	    procedure Delete(); virtual;
-	    
+	    procedure Delete; virtual;
+	
 	    [RequiredRole(ROLE_ADMIN)]
 	    [RequiredRole(ROLE_MANAGER)]
 	    [RequiredRole(ROLE_NORMAL)]
-	    procedure View(); virtual;
-    end;
+	    procedure View; virtual;
+	  end;
 
-    constructor TCar.Create;
-    begin
-      	Aspect.Weaver.Proxify(Self);
-    end;
-    
-    destructor TCar.Destroy;
-    begin
-      	Aspect.Weaver.Unproxify(Self);
-      	inherited;
-    end;
+Now create your aspect context, add the security aspect and proxify the object:
+
+    uses
+	   Aspect4D,
+  	   Aspect4D.Impl, 
+       Security4D.Aspect;
+
+     fAspectContext: IAspectContext;
+     fCar: TCar;
+
+	 fAspectContext := TAspectContext.Create;
+	 fAspectContext.Register(TSecurityAspect.Create(fSecurityContext));
+	
+	 fCar := TCar.Create;
+	 fAspectContext.Weaver.Proxify(fCar);
+
+After using the object do Unproxify:
+
+	 fAspectContext.Weaver.Unproxify(fCar);
+	 fCar.Free;
