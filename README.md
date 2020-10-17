@@ -1,209 +1,173 @@
 # Security For Delphi
+The Security4Delphi consists of an library that enables the use of the concept of security in your Delphi applications.
 
-The Security4Delphi is an API that is a an issue of great importance for most applications and the focus of endless discussions on development teams: access control. The implementation of the security context has been designed in a simple and flexible way, regardless of presentation or technology layer, leaving you free to implement their own solution or use the existing extensions.
+## About The Project
+Security is a an concern of great importance for most applications and the focus of endless discussions on development teams. The implementation of the security context has been designed in a simple and flexible way, regardless of presentation or technology layer, leaving you free to implement their own solution or use the existing extensions.
+
 The authentication mechanism aims to verify the user's identity of a system. 
-Already io authorization mechanism is responsible for ensuring that only authorized users are granted access to certain features of a system. The authorization may happen in two ways: permission functionality and enable by paper.
 
-The key piece to make these possible mechanisms is the security context, represented by ISecurityContext interface. That they are defined methods responsible for managing authentication mechanisms such as, for example, perform Login/Logout or HasRole/HasPermission of users and check whether they are or not authenticated and authorized. To use the security context, just inject it into your code.
+Already io authorization mechanism is responsible for ensuring that only authorized users are granted access to certain features of a system. The authorization may happen in two ways: permission functionality and enable by role.
 
-The Security4Delphi requires Delphi XE or greater.
+### Key validation features
+* Login
+* Logout
+* IsLoggedIn
+* CheckLoggedIn
+* HasRole
+* HasAnyRole
+* HasAuthority
+* HasAnyAuthority
+* GetAuthenticatedUser
 
-# Creating Its Implementation #
+### Built With
+* [Delphi Community Edition](https://www.embarcadero.com/br/products/delphi/starter) - The IDE used 
 
-The key to the security module are the IAuthenticator and IAuthorizer interfaces. To create a new mechanism for authentication and authorization, you only need to implement these two interfaces in your application. The library already has an abstract base class called TSecurityProvider. 
+## Getting Started
+To get a local copy up and running follow these simple steps.
 
-Below is a sample implementation:
+### Prerequisites
+To use this library an updated version of Delphi IDE (XE or higher) is required.
 
-**Authenticator**
+### Installation
+Clone the repo
+```
+git clone https://github.com/ezequieljuliano/Security4Delphi.git
+```
 
-	uses
-	  Security4D,
-	  Security4D.Impl;
+Add the "Search Path" of your IDE or your project the following directories:
+```
+Security4Delphi\src
+```
 
-	type
-	
-	  TAuthenticator = class(TSecurityProvider, IAuthenticator)
-	  private
-	    fAuthenticated: Boolean;
-	    fAuthenticatedUser: IUser;
-	  protected
-	    function GetAuthenticatedUser: IUser;
-	    procedure Authenticate(user: IUser);
-	    procedure Unauthenticate;
-	  public
-	    procedure AfterConstruction; override;
-	  end;
-    
-	{ TAuthenticator }
-	
-	procedure TAuthenticator.AfterConstruction;
-	begin
-	  inherited;
-	  fAuthenticated := False;
-	  fAuthenticatedUser := nil;
-	end;
-	
-	procedure TAuthenticator.Authenticate(user: IUser);
-	var
-	  username, password: string;
-	begin
-	  fAuthenticated := False;
-	  fAuthenticatedUser := nil;
-	
-	  if not Assigned(user) then
-	    raise EAuthenticationException.Create('User not set to security layer.');
-	
-	  username := TCredential(user.Attribute).Username;
-	  password := TCredential(user.Attribute).Password;
-	
-	  if (username.Equals('bob')) and (password.Equals('bob')) then
-	    fAuthenticated := True
-	  else if (username.Equals('jeff')) and (password.Equals('jeff')) then
-	    fAuthenticated := True
-	  else if (username.Equals('nick')) and (password.Equals('nick')) then
-	    fAuthenticated := True;
-	
-	  if fAuthenticated then
-	    fAuthenticatedUser := user
-	  else
-	    raise EAuthenticationException.Create('Unauthenticated user.');
-	end;
-	
-	function TAuthenticator.GetAuthenticatedUser: IUser;
-	begin
-	  Result := fAuthenticatedUser;
-	end;
-	
-	procedure TAuthenticator.Unauthenticate;
-	begin
-	  fAuthenticated := False;
-	  fAuthenticatedUser := nil;
-	end;
+## Usage
+To provide the security context paradigm in your project with Security4Delphi you need:
 
-**Authorizer**
+* Create your implementation of the IAuthenticator interface.
+* Create your implementation of the IAuthorizer interface.
+* Register your implementations in context.
+* Use the context and validate authentication and authorization.
 
-	uses
-	  Security4D,
-	  Security4D.Impl;
+### Sample
+To illustrate usage let's look at a solution for managing logs of an application.
 
-	type
-	
-	  TAuthorizer = class(TSecurityProvider, IAuthorizer)
-	  private
-	    { private declarations }
-	  protected
-	    function HasRole(const role: string): Boolean;
-	    function HasPermission(const resource, operation: string): Boolean;
-	  public
-	    { public declarations }
-	  end;
+Create your implementation of the IAuthenticator interface:
+```
+  TAuthenticator = class(TAbstractSecurityProvider, IAuthenticator)
+  private
+    fAuthenticated: Boolean;
+    fAuthenticatedUser: IUser;
+  protected
+    function GetAuthenticatedUser: IUser;
 
-	{ TAuthorizer }
-	
-	function TAuthorizer.HasPermission(const resource, operation: string): Boolean;
-	var
-	  credential: TCredential;
-	begin
-	  Result := False;
-	  if HasRole(ROLE_ADMIN) then
-	    Result := True
-	  else
-	  begin
-	    credential := (SecurityContext.AuthenticatedUser.Attribute as TCredential);
-	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Insert')) then
-	      Result := True;
-	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Update')) then
-	      Result := True;
-	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('Delete')) then
-	      Result := True;
-	    if (credential.Role.Equals(ROLE_MANAGER)) and (resource.Equals('Car')) and (operation.Equals('View')) then
-	      Result := True;
-	    if (credential.Role.Equals(ROLE_NORMAL)) and (resource.Equals('Car')) and (operation.Equals('View')) then
-	      Result := True;
-	  end;
-	end;
-	
-	function TAuthorizer.HasRole(const role: string): Boolean;
-	begin
-	  if not SecurityContext.IsLoggedIn then
-	    raise EAuthenticationException.Create('Unauthenticated user.');
-	  Result := (SecurityContext.AuthenticatedUser.Attribute as TCredential).Role.Equals(role);
-	end;
+    procedure Authenticate(user: IUser);
+    procedure Unauthenticate;
+  public
+    procedure AfterConstruction; override;
+  end;
+```
 
-Now create your security context and add your authenticator and authorizer:
-	  
-	  fSecurityContext: ISecurityContext;
+Create your implementation of the IAuthorizer interface:
+```
+  TAuthorizer = class(TAbstractSecurityProvider, IAuthorizer)
+  private
+    { private declarations }
+  protected
+    function HasRole(role: string): Boolean;
+    function HasAnyRole(roles: array of string): Boolean;
 
-	  fSecurityContext := TSecurityContext.Create;
-	  fSecurityContext.RegisterAuthenticator(TAuthenticator.Create(fSecurityContext));
-	  fSecurityContext.RegisterAuthorizer(TAuthorizer.Create(fSecurityContext));
+    function HasAuthority(authority: string): Boolean;
+    function HasAnyAuthority(authorities: array of string): Boolean;
+  public
+    { public declarations }
+  end;
+```
 
-After all configured to use the security context you simply add the Uses of Security4D.pas and use in their codes:
+Register your implementations in context:
+```
+function SecurityContext: ISecurityContext;
+begin
+  if (SecurityContextInstance = nil) then
+  begin
+    SecurityContextInstance := TSecurityContext.Create;
+    SecurityContextInstance.RegisterAuthenticator(TAuthenticator.Create(SecurityContextInstance));
+    SecurityContextInstance.RegisterAuthorizer(TAuthorizer.Create(SecurityContextInstance));
+  end;
+  Result := SecurityContextInstance;
+end;
+```
 
-	  if fSecurityContext.IsLoggedIn then
-	    fSecurityContext.Logout;
-    
-      fSecurityContext.Login(TUser.Create('user', TCredential.Create('user', 'user', ROLE_ADMIN)));    
+Use the context and validate authentication and authorization:
+```
+function TPersonRepository.Delete(personId: Integer): Boolean;
+begin
+  if not SecurityContext.HasAnyRole(['ROLE_ADMIN', 'ROLE_MANAGER']) then
+    raise EAuthorizationException.Create('You do not have role to access this feature.');
 
-      if fSecurityContext.HasRole(ROLE_ADMIN) then
-        ShowMessage('Is Admin');
+  if not SecurityContext.HasAuthority('PERSON_DELETE') then
+    raise EAuthorizationException.Create('You do not have permission to access this feature.');
 
-	  if fSecurityContext.HasPermission('Car', 'Insert') then
-        ShowMessage('Has Permission');
+  Result := True;
+end;
+```
 
-# Protecting the system with [RequiredPermission] and [RequiredRole] #
+### Optional Feature - Aspects
+
+Protecting the system with [RequiredRole], [RequiredAnyRole], [RequiredAuthority] and [RequiredAnyAuthority] aspects:
 
 Using Security4Delphi together with [Aspect4Delphi](https://github.com/ezequieljuliano/Aspect4Delphi) is possible to make use of the concept of aspect-oriented programming (AOP).  
 
-The custom attribute [RequiredPermission] lets you mark a method and states that access to this feature requires permission to perform an operation. Operation in this context is defined by the developer name is a system feature.
+```
+  TPersonRepository = class
+  private
+    { private declarations }
+  protected
+    { protected declarations }
+  public
+    constructor Create;
+    destructor Destroy; override;
 
-The custom attribute [RequiredRole] uses the concept of roles - or profiles - to protect resources. A method annotated with [RequiredRole] require the authenticated user has the role indicated to access the resource. 
+    [RequiredRole('ROLE_ADMIN')]
+    [RequiredAuthority('PERSON_INSERT')]
+    function Insert(person: TPerson): TPerson; virtual;
 
-Example of use with the security aspect, remember to give Uses of Aspect4D.pas, Security4D.Aspect.pas and leaving as virtual methods:
+    [RequiredAnyRole('ROLE_ADMIN,ROLE_MANAGER')]
+    [RequiredAuthority('PERSON_UPDATE')]
+    function Update(person: TPerson): TPerson; virtual;
 
-    uses 
-       Security4D.Aspect;
+    [RequiredAnyRole('ROLE_ADMIN,ROLE_MANAGER')]
+    [RequiredAuthority('PERSON_DELETE')]
+    function Delete(personId: Integer): Boolean; virtual;
 
-	type
-	
-	  TCar = class
-	  private
-	    { private declarations }
-	  protected
-	    { protected declarations }
-	  public
-	    [RequiredPermission('Car', 'Insert')]
-	    procedure Insert; virtual;
-	
-	    [RequiredPermission('Car', 'Update')]
-	    procedure Update; virtual;
-	
-	    [RequiredPermission('Car', 'Delete')]
-	    procedure Delete; virtual;
-	
-	    [RequiredRole(ROLE_ADMIN)]
-	    [RequiredRole(ROLE_MANAGER)]
-	    [RequiredRole(ROLE_NORMAL)]
-	    procedure View; virtual;
-	  end;
+    [RequiredAnyRole('ROLE_ADMIN,ROLE_MANAGER,ROLE_GUEST')]
+    [RequiredAuthority('PERSON_VIEW')]
+    function FindById(personId: Integer): TPerson; virtual;
+  end;
+```
 
-Now create your aspect context, add the security aspect and proxify the object:
+## Roadmap
 
-    uses
-	   Aspect4D,
-  	   Aspect4D.Impl, 
-       Security4D.Aspect;
+See the [open issues](https://github.com/ezequieljuliano/Security4Delphi/issues) for a list of proposed features (and known issues).
 
-     fAspectContext: IAspectContext;
-     fCar: TCar;
+## Contributing
 
-	 fAspectContext := TAspectContext.Create;
-	 fAspectContext.Register(TSecurityAspect.Create(fSecurityContext));
-	
-	 fCar := TCar.Create;
-	 fAspectContext.Weaver.Proxify(fCar);
+Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-After using the object do Unproxify:
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-	 fAspectContext.Weaver.Unproxify(fCar);
-	 fCar.Free;
+## License
+
+Distributed under the APACHE LICENSE. See `LICENSE` for more information.
+
+## Contact
+
+To contact us use the options:
+* E-mail  : ezequieljuliano@gmail.com
+* Twitter : [@ezequieljuliano](https://twitter.com/ezequieljuliano)
+* Linkedin: [ezequiel-juliano-müller](https://www.linkedin.com/in/ezequiel-juliano-müller-43988a4a)
+
+## Project Link
+[https://github.com/ezequieljuliano/Security4Delphi](https://github.com/ezequieljuliano/Security4Delphi)
